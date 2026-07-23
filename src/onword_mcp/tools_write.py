@@ -70,19 +70,19 @@ def register(mcp):
     def replace_text_in_paragraph(index: int, find: str, replace: str) -> str:
         """Find and replace a substring within ONE paragraph only.
         Preserves all other formatting in the paragraph."""
+        # Note: Word's Find.Execute(Replace=...) proved unreliable via COM
+        # (reported success without changing text), so we locate the substring
+        # in Python and assign directly to a character sub-Range instead.
         with word_write_session() as (word, doc):
             check_paragraph_index(doc, index)
             rng = doc.Paragraphs(index).Range
-            f = rng.Find
-            f.ClearFormatting()
-            f.Text = find
-            f.Replacement.ClearFormatting()
-            f.Replacement.Text = replace
-            f.Wrap = 0  # wdFindStop
-            replaced = f.Execute(Replace=2)  # wdReplaceAll (within range)
-            if replaced:
-                return f"Replaced '{find}' in paragraph {index}."
-            return f"'{find}' not found in paragraph {index}."
+            text = rng.Text
+            pos = text.find(find)
+            if pos == -1:
+                return f"'{find}' not found in paragraph {index}."
+            sub = doc.Range(rng.Start + pos, rng.Start + pos + len(find))
+            sub.Text = replace
+            return f"Replaced '{find}' in paragraph {index}."
 
     @mcp.tool()
     def insert_at_selection(text: str) -> str:
