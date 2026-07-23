@@ -40,7 +40,6 @@ uvx --from git+https://github.com/mirecekd/onword-mcp onword-mcp --transport str
 ```
 
 ### One-line from PyPI (after publishing)
-
 ```bat
 uvx onword-mcp --transport streamable-http
 ```
@@ -62,6 +61,52 @@ cmd /c "set MCP_TRANSPORT=streamable-http&& set MCP_PORT=18347&& uvx --from C:\t
 ```
 
 With `streamable-http`, the MCP endpoint is `http://127.0.0.1:18347/mcp`.
+
+## Troubleshooting
+
+### `error: Failed to spawn: 'onword-mcp' ... Access is denied. (os error 5)`
+
+The package built and installed fine - what failed is executing the small
+console-script trampoline `onword-mcp.exe` that uv generates in its cache
+(`%LOCALAPPDATA%\uv\cache\...`). On corporate Windows machines this freshly
+created, unsigned exe is typically blocked or quarantined by the antivirus
+(Defender, Cortex, CrowdStrike, ...) or by an AppLocker/SRP policy that
+forbids running executables from the user profile.
+
+Workarounds, in order of preference:
+
+1. **Run as a module instead of the exe** (no trampoline exe involved):
+
+   ```bat
+   uvx --from C:\tools\onword-mcp python -m onword_mcp --transport streamable-http --port 18347
+   ```
+
+   Note: uvx caches the built environment by package version. If you updated
+   the sources and get `No module named onword_mcp.__main__`, force a fresh
+   build once with `uvx --no-cache --from ... python -m onword_mcp ...`.
+
+2. **Add an AV/Defender exclusion** for the uv cache directory
+   (`%LOCALAPPDATA%\uv`), or ask IT to allowlist it, then retry. You can
+   also clear a possibly quarantined/corrupted cached build first:
+
+   ```bat
+   uv cache clean onword-mcp
+   ```
+
+3. **Move the uv cache** somewhere the policy allows executing from:
+
+   ```bat
+   set UV_CACHE_DIR=C:\tools\uv-cache
+   uvx --from C:\tools\onword-mcp onword-mcp --transport streamable-http
+   ```
+
+4. **Use a plain venv** (no uv tool cache at all):
+
+   ```bat
+   cd C:\tools\onword-mcp
+   uv venv && uv pip install -e .
+   .venv\Scripts\python.exe -m onword_mcp --transport streamable-http --port 18347
+   ```
 
 ## MCP client configuration
 
