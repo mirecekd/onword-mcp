@@ -93,10 +93,72 @@ def register(mcp):
             return f"{len(results)} match(es) for '{query}':\n" + "\n".join(results)
 
     @mcp.tool()
+    def goto_text(query: str, occurrence: int = 1) -> str:
+        """Select and scroll to text in Word so the user can see it. Use before
+        editing to show the user exactly which place will be changed. Returns the
+        paragraph index, page and full paragraph text of the selected match."""
+        with word_session() as (word, doc):
+            rng = doc.Content
+            find = rng.Find
+            find.ClearFormatting()
+            find.Text = query
+            find.Forward = True
+            find.Wrap = 0  # wdFindStop
+            for _ in range(max(1, occurrence)):
+                if not find.Execute():
+                    return f"No match for '{query}' (occurrence {occurrence})."
+                hit_start, hit_end = rng.Start, rng.End
+                rng.Collapse(0)  # collapse to end, continue searching
+            hit = doc.Range(hit_start, hit_end)
+            hit.Select()
+            try:
+                word.ActiveWindow.ScrollIntoView(hit, True)
+            except Exception:
+                pass  # ScrollIntoView is unavailable in some window states
+            idx = doc.Range(0, hit_start).Paragraphs.Count
+            page = int(hit.Information(3))  # wdActiveEndPageNumber
+            para = doc.Paragraphs(idx).Range.Text.rstrip("\r\n\x07")
+            return json.dumps(
+                {
+                    "selected": query,
+                    "paragraph_index": idx,
+                    "page": page,
+                    "paragraph_text": para,
+                },
+                ensure_ascii=False,
+                indent=2,
+            )
+
+    @mcp.tool()
+    def goto_paragraph(index: int) -> str:
+        """Select and scroll to a whole paragraph in Word so the user can see it.
+        Use when the target is a table cell, heading or a paragraph you already
+        know the index of."""
+        with word_session() as (word, doc):
+            check_paragraph_index(doc, index)
+            rng = doc.Paragraphs(index).Range
+            rng.Select()
+            try:
+                word.ActiveWindow.ScrollIntoView(rng, True)
+            except Exception:
+                pass
+            page = int(rng.Information(3))
+            return json.dumps(
+                {
+                    "paragraph_index": index,
+                    "page": page,
+                    "paragraph_text": rng.Text.rstrip("\r\n\x07"),
+                },
+                ensure_ascii=False,
+                indent=2,
+            )
+
+    @mcp.tool()
     def get_page_paragraphs(page_number: int) -> str:
         """List paragraphs located on a given page (index, style, list info,
         preview). Use when the user refers to content by page number,
         e.g. 'the bullet on page 10'."""
+
         with word_session() as (word, doc):
             total = doc.Paragraphs.Count
             lines = []

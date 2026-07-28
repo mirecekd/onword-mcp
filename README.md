@@ -27,7 +27,7 @@ If you want Word, the MCP server and (optionally) a reverse SSH tunnel started
 by a single double-click, use the launcher in [`launcher/`](launcher/):
 
 ```bat
-powershell -NoProfile -ExecutionPolicy Bypass -File C:\tools\onword-mcp\launcher\Install-Shortcut.ps1 -SshTarget dev.domain.com -WithStop
+powershell -NoProfile -ExecutionPolicy Bypass -File C:\tools\onword-mcp\launcher\Install-Shortcut.ps1 -SshTarget dev.domain.com -WithStop -WithStatus
 ```
 
 This creates an **onword** icon on the Desktop that starts Word, the MCP server
@@ -37,6 +37,14 @@ ports live in a gitignored `launcher/onword.env` (template:
 `onword.env.example`), never in the scripts. It can also auto-start with Word
 via the optional `AutoExec.bas` macro. See
 [launcher/README.md](launcher/README.md) for details.
+
+To see whether it is running, and to stop it, run the two helper scripts
+directly (the desktop icons are only shortcuts to them):
+
+```bat
+powershell -NoProfile -ExecutionPolicy Bypass -File C:\tools\onword-mcp\launcher\onword-status.ps1
+powershell -NoProfile -ExecutionPolicy Bypass -File C:\tools\onword-mcp\launcher\onword-stop.ps1
+```
 
 ## Running
 

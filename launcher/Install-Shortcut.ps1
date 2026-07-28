@@ -7,6 +7,7 @@
       - "onword"          -> onword-launch.vbs (Word + MCP server + SSH tunnel)
       - "onword (update)" -> same, but with -NoCache (rebuild from GitHub)
       - "onword (stop)"   -> onword-stop.ps1   (only with -WithStop)
+      - "onword (status)" -> onword-status.ps1 (only with -WithStatus)
 
     All settings (SSH host, port, source) live in onword.env next to the
     scripts - never in the shortcut and never in the repository. If
@@ -42,7 +43,10 @@ param(
     [switch]$WithUpdate = $true,
 
     # Also create the "(stop)" shortcut.
-    [switch]$WithStop
+    [switch]$WithStop,
+
+    # Also create the "(status)" shortcut (window stays open with the report).
+    [switch]$WithStatus
 )
 
 $ErrorActionPreference = "Stop"
@@ -50,6 +54,7 @@ $ErrorActionPreference = "Stop"
 $here = Split-Path -Parent $MyInvocation.MyCommand.Path
 $launchVbs = Join-Path $here "onword-launch.vbs"
 $stopPs1 = Join-Path $here "onword-stop.ps1"
+$statusPs1 = Join-Path $here "onword-status.ps1"
 $envFile = Join-Path $here "onword.env"
 $envExample = Join-Path $here "onword.env.example"
 
@@ -142,6 +147,14 @@ if ($WithStop) {
         -Arguments "-NoProfile -ExecutionPolicy Bypass -File `"$stopPs1`"" `
         -Description "Kill the onword-mcp server and the SSH tunnel" `
         -Icon "$env:SystemRoot\System32\shell32.dll,131"
+}
+
+if ($WithStatus) {
+    # -NoExit so the report stays readable after a double-click.
+    New-Shortcut -LinkName "$Name (status)" -Target $powershell `
+        -Arguments "-NoProfile -NoExit -ExecutionPolicy Bypass -File `"$statusPs1`"" `
+        -Description "Show whether Word, the onword-mcp server and the tunnel are up" `
+        -Icon "$env:SystemRoot\System32\shell32.dll,23"
 }
 
 Write-Host ""

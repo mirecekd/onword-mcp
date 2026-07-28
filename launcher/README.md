@@ -18,17 +18,22 @@ server is fetched from GitHub by `uvx`) to the Windows machine, e.g.
 `C:\tools\onword-mcp`, then:
 
 ```bat
-powershell -NoProfile -ExecutionPolicy Bypass -File C:\tools\onword-mcp\launcher\Install-Shortcut.ps1 -SshTarget dev.domain.com -WithStop
+powershell -NoProfile -ExecutionPolicy Bypass -File C:\tools\onword-mcp\launcher\Install-Shortcut.ps1 -SshTarget dev.domain.com -WithStop -WithStatus
 ```
 
 This creates `onword.env` (from `onword.env.example`) with your SSH host, and
-three icons on the Desktop:
+icons on the Desktop:
 
 | Icon | What it does |
 |---|---|
 | **onword** | starts Word + server + tunnel (cached build, starts in seconds) |
 | **onword (update)** | same, but `--no-cache` - re-downloads and rebuilds from GitHub (slow, needs network); use after pushing new commits |
 | **onword (stop)** | kills a leftover server/tunnel if cleanup did not happen |
+| **onword (status)** | read-only check: is Word up, is the server serving, is the tunnel alive (`-WithStatus`) |
+
+Deleting the icons does not stop anything and does not uninstall anything -
+they are plain `.lnk` files pointing at the scripts in this folder. Re-run
+`Install-Shortcut.ps1` to get them back (existing `onword.env` is kept).
 
 Then just double-click **onword**. Nothing flashes on the screen - the whole
 chain runs hidden and logs into `%LOCALAPPDATA%\onword-mcp\logs`.
@@ -96,6 +101,21 @@ Host onword-relay
 # use a different config file
 .\onword-launch.ps1 -EnvFile C:\secrets\onword-work.env
 ```
+
+Check what is running:
+
+```powershell
+.\onword-status.ps1
+
+# same plus the tail of launcher/server/ssh logs
+.\onword-status.ps1 -Log
+```
+
+Output is one line per component (`[UP]` / `[DOWN]`) for Word, the MCP server
+(with the PID holding the port and the endpoint URL), the SSH tunnel and the
+launcher, plus a warning about a stale `launcher.json`. Exit code is 0 when the
+server serves, so it can be used in scripts:
+`.\onword-status.ps1 > $null; if ($LASTEXITCODE) { .\onword-launch.ps1 }`.
 
 Stop a leftover instance:
 
