@@ -8,3 +8,8 @@ venv/
 .env
 .uv/
 memory-bank/
+
+# launcher configuration (host names, ports) - never commit
+onword.env
+launcher/onword.env
+

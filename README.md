@@ -21,9 +21,28 @@ onword-mcp mirrors the approach of the official Claude for Word add-in: it never
 
 No Python installation needed - `uvx` downloads Python and all dependencies (fastmcp, pywin32) automatically on first run.
 
+## Quick start on Windows: one desktop icon
+
+If you want Word, the MCP server and (optionally) a reverse SSH tunnel started
+by a single double-click, use the launcher in [`launcher/`](launcher/):
+
+```bat
+powershell -NoProfile -ExecutionPolicy Bypass -File C:\tools\onword-mcp\launcher\Install-Shortcut.ps1 -SshTarget dev.domain.com -WithStop
+```
+
+This creates an **onword** icon on the Desktop that starts Word, the MCP server
+on port 18347 and `ssh -N -R 18347:127.0.0.1:18347 <your-host>`, keeps the
+tunnel alive, and shuts everything down when Word is closed. Host name and
+ports live in a gitignored `launcher/onword.env` (template:
+`onword.env.example`), never in the scripts. It can also auto-start with Word
+via the optional `AutoExec.bas` macro. See
+[launcher/README.md](launcher/README.md) for details.
+
 ## Running
 
+
 ### From a copied directory (no packaging needed)
+
 
 Copy this whole directory to the Windows machine (e.g. `C:\tools\onword-mcp`) and run:
 
