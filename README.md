@@ -177,7 +177,7 @@ Start the server first (see above), then:
 
 ## Tools
 
-35 tools in four groups.
+41 tools in five groups.
 
 ### Reading (token-cheap orientation)
 
@@ -197,6 +197,7 @@ Start the server first (see above), then:
 | `goto_text(query, occurrence)` | select and scroll to text in the live Word window |
 | `goto_paragraph(index)` | select and scroll to a whole paragraph (heading, table cell) |
 | `goto_table_row(table_index, row)` | select and scroll to a table row |
+| `goto_comment(comment_index)` | select and scroll to the text a comment is anchored to |
 
 
 ### Text editing (surgical, co-authoring safe)
@@ -240,6 +241,20 @@ the layout - use these instead.
 | `insert_table_row(table_index, after_row, cells)` | new row (inherits formatting), `after_row=0` = first |
 | `delete_table_row(table_index, row)` | delete one row |
 
+### Comments (review remarks)
+
+Word groups comments into threads: a reply has an `Ancestor`, and the resolved
+flag lives on the thread root only. These tools always report and act on the
+whole thread, so "open comment" means "comment whose thread is not resolved".
+
+| Tool | Purpose |
+|---|---|
+| `list_comments(only_open, start_index, limit, from_paragraph, to_paragraph)` | comments with author, date, resolved state, anchor and text; unresolved only by default, restrictable to one chapter |
+| `get_comment(comment_index)` | one comment in full plus its whole thread of replies |
+| `reply_to_comment(comment_index, text)` | record how a remark was addressed |
+| `resolve_comment(comment_index, resolved)` | close (or reopen) a thread |
+| `delete_comment(comment_index)` | delete a comment; prefer resolving |
+
 ## Example workflows
 
 > "There is a wrong bullet on page 10, move it one level right."
@@ -253,6 +268,12 @@ the layout - use these instead.
 1. LLM calls `list_tables` - finds the table by its header row.
 2. LLM calls `read_table(3)` - reads the rows to identify the right one.
 3. LLM calls `goto_table_row(3, 4)`, then `set_table_cell(3, 4, 2, "Miroslav Dvorak")`.
+
+> "Go through the open review comments in chapter 3 and close what is done."
+
+1. LLM calls `list_comments(only_open=True, from_paragraph=713, to_paragraph=1654)`.
+2. For each remark it calls `goto_comment(n)` so you see the anchor in Word.
+3. After fixing the text it calls `reply_to_comment(n, "Addressed: ...")` and `resolve_comment(n)`.
 
 ## Architecture notes
 
