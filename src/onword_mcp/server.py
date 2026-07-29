@@ -17,7 +17,7 @@ import sys
 
 from fastmcp import FastMCP
 
-from . import __version__, tools_format, tools_read, tools_write
+from . import __version__, tools_format, tools_read, tools_table, tools_write
 
 DEFAULT_PORT = 18347
 DEFAULT_HOST = "127.0.0.1"
@@ -28,6 +28,9 @@ Workflow for large documents:
 1. get_document_info / get_document_outline to orient (paginated, token-cheap).
 2. read_paragraphs / get_page_paragraphs / find_text to locate content.
 3. Edit surgically: replace_paragraph, insert_after_paragraph, formatting tools.
+4. For tables use the table tools (list_tables, read_table, set_table_cell,
+   insert_table_row) - a table cell is its own paragraph, so paragraph-level
+   inserts would corrupt the table layout.
 Never ask for the whole document text - always work with paragraph indexes.
 """
 
@@ -36,6 +39,8 @@ mcp = FastMCP("onword-mcp", instructions=INSTRUCTIONS)
 tools_read.register(mcp)
 tools_write.register(mcp)
 tools_format.register(mcp)
+tools_table.register(mcp)
+
 
 
 def parse_args(argv=None):
