@@ -3,7 +3,16 @@
 Word tables cannot be edited through paragraph indexes alone - each cell is its
 own paragraph, so inserting a paragraph "between rows" corrupts the layout.
 These tools operate on the Tables collection instead.
+
+Two gotchas these tools work around:
+- A cell's Range ends with the end-of-cell marker (\\r\\x07). Writing to the
+  full Range breaks the table, so writes shrink the Range by one character.
+- A single cell may hold several paragraphs (e.g. text plus a stray empty
+  paragraph). Paragraph indexes therefore do not map 1:1 to cells - use
+  find_table_at_paragraph to translate an index into row/column coordinates.
+  Rewriting the cell with set_table_cell collapses it back to one paragraph.
 """
+
 
 import json
 
