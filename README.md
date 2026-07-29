@@ -14,7 +14,17 @@ Existing Word MCP servers either work on closed `.docx` files (useless for docum
 
 onword-mcp mirrors the approach of the official Claude for Word add-in: it never sends the whole document anywhere. The LLM first reads a token-cheap outline (paragraph indexes, styles, list levels, previews), then reads or edits only the specific paragraphs it needs - one `Range` at a time, with `ScreenUpdating` off during writes.
 
+Tables get their own tool set (a cell is its own paragraph, so paragraph-level
+inserts would corrupt the layout), and the `goto_*` tools let the LLM select and
+scroll to the target in the live Word window so you can see what it is about to
+change before it changes it.
+
+Curious whether this could be an Office add-in instead? See
+[docs/office-addin-research.md](docs/office-addin-research.md) - short answer:
+an add-in cannot be an MCP server (no listening socket on the web platform).
+
 ## Requirements
+
 
 - Windows (win32) with Microsoft Word installed and **running with a document open**
 - [uv](https://docs.astral.sh/uv/getting-started/installation/) (`winget install astral-sh.uv` or `powershell -c "irm https://astral.sh/uv/install.ps1 | iex"`)
@@ -167,6 +177,8 @@ Start the server first (see above), then:
 
 ## Tools
 
+35 tools in four groups.
+
 ### Reading (token-cheap orientation)
 
 | Tool | Purpose |
@@ -174,9 +186,18 @@ Start the server first (see above), then:
 | `get_document_info` | name, path, pages, paragraph count, track changes state |
 | `get_document_outline(start_index, limit)` | paginated structure: index, style, list level, preview |
 | `read_paragraphs(start_index, count)` | full text of a paragraph block |
-| `find_text(query)` | locate text, returns paragraph indexes + page numbers |
+| `find_text(query, max_results)` | locate text, returns paragraph indexes + page numbers |
 | `get_page_paragraphs(page_number)` | paragraphs on a given page ("the bullet on page 10") |
 | `get_selection` | user's current cursor/selection |
+
+### Showing the user what will change
+
+| Tool | Purpose |
+|---|---|
+| `goto_text(query, occurrence)` | select and scroll to text in the live Word window |
+| `goto_paragraph(index)` | select and scroll to a whole paragraph (heading, table cell) |
+| `goto_table_row(table_index, row)` | select and scroll to a table row |
+
 
 ### Text editing (surgical, co-authoring safe)
 
@@ -205,18 +226,42 @@ Start the server first (see above), then:
 | `set_paragraph_alignment(index, alignment)` | left/center/right/justify |
 | `format_text(index, find, bold, italic, ...)` | character formatting of a substring |
 
-## Example workflow
+### Tables
+
+A table cell is a paragraph of its own, so paragraph-level inserts would corrupt
+the layout - use these instead.
+
+| Tool | Purpose |
+|---|---|
+| `list_tables` | all tables: index, page, size, header row text |
+| `read_table(table_index, start_row, count)` | rows as lists of cell texts, paginated |
+| `find_table_at_paragraph(index)` | translate a paragraph index into table/row/column |
+| `set_table_cell(table_index, row, column, text)` | set one cell, keeps formatting |
+| `insert_table_row(table_index, after_row, cells)` | new row (inherits formatting), `after_row=0` = first |
+| `delete_table_row(table_index, row)` | delete one row |
+
+## Example workflows
 
 > "There is a wrong bullet on page 10, move it one level right."
 
 1. LLM calls `get_page_paragraphs(10)` - sees `[132] (List Paragraph) [list:bullet lvl:1]: Wrong bullet text...`
-2. LLM calls `list_indent(132)` - bullet moves one level right, live in the open Word window.
+2. LLM calls `goto_paragraph(132)` - Word scrolls there and selects it, so you see the target.
+3. LLM calls `list_indent(132)` - bullet moves one level right, live in the open Word window.
+
+> "In the risk table, change the owner of the second risk to me."
+
+1. LLM calls `list_tables` - finds the table by its header row.
+2. LLM calls `read_table(3)` - reads the rows to identify the right one.
+3. LLM calls `goto_table_row(3, 4)`, then `set_table_cell(3, 4, 2, "Miroslav Dvorak")`.
 
 ## Architecture notes
 
 - COM objects are never cached between tool calls. Each call does `CoInitialize()` + `GetActiveObject("Word.Application")` - cheap (running-object-table lookup) and avoids all cross-thread COM marshalling issues with the async HTTP server.
 - All writes wrap the change in `ScreenUpdating = False` / `finally: True`.
 - No whole-document reads or writes anywhere - everything is indexed by paragraph.
+- Substring replacement does not use `Range.Find.Execute(Replace=...)` (unreliable over COM); the position is computed in Python and assigned to a character sub-Range.
+- The server itself starts on any OS - the pywin32 import is guarded, and tools raise an actionable error when Word is not available. Handy for developing on Linux.
+
 
 ## Support
 
