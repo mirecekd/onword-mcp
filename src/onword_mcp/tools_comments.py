@@ -13,11 +13,18 @@ Gotchas worked around here:
   the body as the anchor is a common mistake, so both are returned separately.
 - Replies must be added through Replies.Add on the thread root; adding to a
   reply raises. resolve/reply therefore redirect to .Ancestor automatically.
+- Comments.Add over a whole paragraph Range would include the paragraph mark
+  and anchor the comment across the break, so add_comment trims it.
 """
 
 import json
 
-from .word import WD_ACTIVE_END_PAGE_NUMBER, word_session, word_write_session
+from .word import (
+    WD_ACTIVE_END_PAGE_NUMBER,
+    check_paragraph_index,
+    word_session,
+    word_write_session,
+)
 
 
 def _check_comment_index(doc, index: int) -> None:
@@ -105,6 +112,33 @@ def _brief(doc, index: int, preview: int = 200) -> dict:
 
 
 def register(mcp):
+    @mcp.tool()
+    def add_comment(paragraph_index: int, text: str, anchor: str | None = None) -> str:
+        """Add a NEW comment thread anchored to a paragraph, or to a substring
+        inside it when 'anchor' is given. Use reply_to_comment to append to an
+        existing thread instead."""
+        with word_write_session() as (word, doc):
+            check_paragraph_index(doc, paragraph_index)
+            rng = doc.Paragraphs(paragraph_index).Range
+            if anchor:
+                body = rng.Text
+                pos = body.find(anchor)
+                if pos == -1:
+                    raise ValueError(
+                        f"Anchor text {anchor!r} not found in paragraph "
+                        f"{paragraph_index}."
+                    )
+                rng = doc.Range(rng.Start + pos, rng.Start + pos + len(anchor))
+            else:
+                # drop the paragraph mark so the comment does not span the break
+                if rng.End > rng.Start:
+                    rng = doc.Range(rng.Start, rng.End - 1)
+            doc.Comments.Add(rng, text)
+            return (
+                f"Comment added to paragraph {paragraph_index}"
+                + (f" on {anchor!r}." if anchor else ".")
+            )
+
     @mcp.tool()
     def list_comments(
         only_open: bool = True,

@@ -177,7 +177,7 @@ Start the server first (see above), then:
 
 ## Tools
 
-41 tools in five groups.
+42 tools in five groups.
 
 ### Reading (token-cheap orientation)
 
@@ -250,6 +250,7 @@ whole thread, so "open comment" means "comment whose thread is not resolved".
 | Tool | Purpose |
 |---|---|
 | `list_comments(only_open, start_index, limit, from_paragraph, to_paragraph)` | comments with author, date, resolved state, anchor and text; unresolved only by default, restrictable to one chapter |
+| `add_comment(paragraph_index, text, anchor)` | new comment thread on a paragraph, or on a substring when `anchor` is given |
 | `get_comment(comment_index)` | one comment in full plus its whole thread of replies |
 | `reply_to_comment(comment_index, text)` | record how a remark was addressed |
 | `resolve_comment(comment_index, resolved)` | close (or reopen) a thread |
