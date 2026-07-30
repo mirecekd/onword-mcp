@@ -252,9 +252,43 @@ whole thread, so "open comment" means "comment whose thread is not resolved".
 | `list_comments(only_open, start_index, limit, from_paragraph, to_paragraph)` | comments with author, date, resolved state, anchor and text; unresolved only by default, restrictable to one chapter |
 | `add_comment(paragraph_index, text, anchor)` | new comment thread on a paragraph, or on a substring when `anchor` is given |
 | `get_comment(comment_index)` | one comment in full plus its whole thread of replies |
-| `reply_to_comment(comment_index, text)` | record how a remark was addressed |
-| `resolve_comment(comment_index, resolved)` | close (or reopen) a thread |
-| `delete_comment(comment_index)` | delete a comment; prefer resolving |
+| `reply_to_comment(comment_index, text, expect_author, expect_contains)` | record how a remark was addressed |
+| `resolve_comment(comment_index, resolved, expect_author, expect_contains)` | close (or reopen) a thread |
+| `delete_comment(comment_index, expect_author, expect_contains)` | delete a comment; prefer resolving |
+
+**Comment indexes are positions, not IDs.** They shift after every comment
+operation *and* after text edits, because comments are ordered by their anchor.
+A reply sent to a stale index lands on somebody else's thread and the write
+still succeeds - so pass `expect_author` and the write is refused instead
+(`delete_comment` requires it, as deletion cannot be undone). Comment writes
+save by default and echo the live thread back so a wrong target is obvious.
+
+## Gotchas and lessons learned
+
+Word over COM has sharp edges. The full list, with causes and workarounds, is
+in [docs/lessons-learned.md](docs/lessons-learned.md) - it comes from editing a
+88-page, 67-table document with 150+ comments live on SharePoint. The essentials:
+
+- **All indexes are positional.** Re-locate the target immediately before each
+  write; never reuse an index from earlier in the conversation.
+- **Writes can silently roll back** - text, styles, comment replies and the
+  resolved flag have all been seen to revert. Save per operation and verify
+  afterwards, including in the next session.
+- **`find_text` often reports an index one too low**, and Find is
+  case-insensitive.
+- **Word deletes a comment together with its anchor paragraph**, so moving a
+  block destroys the remarks on it - list them first, re-create them after.
+- **Inserted paragraphs inherit the target's style - all of them.** Inserting a
+  block at a heading turns the whole block into headings.
+- **`replace_paragraph` resets the style to Normal**, killing heading numbering
+  and the TOC entry. For headings prefer `replace_text_in_paragraph`.
+- **Headings styled All Caps must be searched in capitals.**
+- **Review table *contents* with `read_table`**, not just the outline: template
+  placeholders sat unnoticed in a deliverable through four review passes.
+- **Structural defects hide in styles**, not in text - watch `style`,
+  `list_type` and `list_string`, not just what the paragraphs say.
+- **Renumbering does not fix cross-references**, and only the user can refresh
+  the table of contents (F9).
 
 ## Example workflows
 
@@ -274,7 +308,8 @@ whole thread, so "open comment" means "comment whose thread is not resolved".
 
 1. LLM calls `list_comments(only_open=True, from_paragraph=713, to_paragraph=1654)`.
 2. For each remark it calls `goto_comment(n)` so you see the anchor in Word.
-3. After fixing the text it calls `reply_to_comment(n, "Addressed: ...")` and `resolve_comment(n)`.
+3. After fixing the text it calls `reply_to_comment(n, "Addressed: ...", expect_author="Havranek")` and `resolve_comment(n, expect_author="Havranek")`.
+4. Before the next comment it calls `list_comments` again - step 3 shifted the indexes.
 
 ## Architecture notes
 

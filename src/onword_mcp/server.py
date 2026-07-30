@@ -42,6 +42,21 @@ Workflow for large documents:
    threads, goto_comment shows the anchor in Word, reply_to_comment records
    how a remark was addressed, resolve_comment closes the thread).
 Never ask for the whole document text - always work with paragraph indexes.
+
+ALL INDEXES ARE POSITIONAL, NOT STABLE IDS. Paragraph, table and comment
+indexes shift whenever content is inserted, moved or deleted. Re-locate the
+target immediately before each write; never reuse an index from earlier in the
+conversation or from your notes.
+
+Two habits this server was hardened around, learned the hard way:
+- Verify AFTER saving. Writes have been seen to silently roll back - the tool
+  reports success and the change is gone. Read the state back.
+- On comments, pass expect_author to reply_to_comment / resolve_comment (it is
+  required by delete_comment). A shifted index otherwise writes onto a
+  stranger's thread and nothing complains.
+
+find_text and goto_text often report an index one lower than the real one, so
+read both index and index+1 before editing.
 """
 
 mcp = FastMCP("onword-mcp", instructions=INSTRUCTIONS)
